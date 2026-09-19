@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HostelFix AI – Report it once. AI routes it to the right hands.</title>
+<meta name="description" content="HostelFix AI reads a hostel complaint, decides who should fix it and how urgent it is, and lets students track it until it is closed.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #EDF0EA;
+    --surface: #FAFBF8;
+    --ink: #13303B;
+    --muted: #4B636D;
+    --line: #C7D1CB;
+    --tape: #F0B400;
+    --tape-ink: #2A2000;
+    --urgent: #B3402D;
+    --ok: #2F7D5B;
+    --display: 'Bricolage Grotesque', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --body: 'Instrument Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0F1D23;
+      --surface: #16272F;
+      --ink: #E6EEEA;
+      --muted: #9DB2B8;
+      --line: #2A4048;
+      --tape: #F2C230;
+      --tape-ink: #2A2000;
+      --urgent: #EE7A66;
+      --ok: #59B58D;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0F1D23;
+    --surface: #16272F;
+    --ink: #E6EEEA;
+    --muted: #9DB2B8;
+    --line: #2A4048;
+    --tape: #F2C230;
+    --tape-ink: #2A2000;
+    --urgent: #EE7A66;
+    --ok: #59B58D;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  :focus-visible { outline: 3px solid var(--tape); outline-offset: 3px; border-radius: 4px; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+
+  /* Header */
+  header.site {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 20px 0; flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 800; font-size: 22px; text-decoration: none; }
+  .brand .mark {
+    width: 34px; height: 34px; border-radius: 8px; background: var(--tape); color: var(--tape-ink);
+    display: grid; place-items: center; font-size: 19px;
+  }
+  nav.site { display: flex; align-items: center; gap: 22px; font-size: 15px; font-weight: 500; }
+  nav.site a { text-decoration: none; color: var(--muted); }
+  nav.site a:hover { color: var(--ink); }
+  nav.site a.btn { color: var(--bg); }
+
+  .btn {
+    display: inline-block; background: var(--ink); color: var(--bg); border: 0;
+    font: 600 15px var(--body); padding: 11px 18px; border-radius: 8px; cursor: pointer; text-decoration: none;
+  }
+  .btn:hover { opacity: .9; }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
+
+  /* Hero */
+  .hero { padding: 40px 0 24px; }
+  .hero h1 {
+    font-family: var(--display); font-weight: 800; letter-spacing: -0.02em;
+    font-size: clamp(40px, 7vw, 76px); line-height: 1.02; margin: 0 0 20px; max-width: 14ch;
+  }
+  .hero p.lead { font-size: 20px; color: var(--muted); max-width: 56ch; margin: 0 0 8px; }
+
+  /* Demo */
+  .demo { display: grid; grid-template-columns: 1.05fr 1fr; gap: 28px; margin: 36px 0 24px; align-items: start; }
+  .compose label { display: block; font-weight: 600; margin-bottom: 8px; }
+  .compose textarea {
+    width: 100%; min-height: 150px; resize: vertical; font: 17px/1.5 var(--body);
+    padding: 14px 16px; border: 1.5px solid var(--line); border-radius: 10px;
+    background: var(--surface); color: var(--ink);
+  }
+  .compose textarea::placeholder { color: var(--muted); opacity: .8; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 16px; }
+  .chip {
+    font: 500 14px var(--body); background: transparent; color: var(--ink); cursor: pointer;
+    border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; text-align: left;
+  }
+  .chip:hover { border-color: var(--ink); }
+  .compose .hint { font-size: 14px; color: var(--muted); margin: 12px 0 0; }
+
+  /* The complaint slip */
+  .slip {
+    position: relative; background: var(--surface); border-radius: 10px;
+    border: 1.5px solid var(--line); overflow: hidden;
+  }
+  .slip .strip {
+    height: 14px;
+    background: repeating-linear-gradient(-45deg, var(--tape) 0 12px, var(--ink) 12px 24px);
+  }
+  .slip .body { padding: 18px 20px 6px; }
+  .slip .top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .slip .id { font-family: var(--display); font-weight: 700; font-size: 18px; }
+  .slip .status { font-size: 14px; color: var(--muted); }
+  .slip .complaint { margin: 10px 0 14px; padding-bottom: 14px; border-bottom: 2px dashed var(--line); color: var(--muted); font-size: 16px; overflow-wrap: anywhere; }
+  .slip dl { margin: 0; display: grid; grid-template-columns: 110px 1fr; row-gap: 10px; column-gap: 12px; padding-bottom: 14px; }
+  .slip dt { color: var(--muted); font-size: 15px; }
+  .slip dd { margin: 0; font-weight: 600; }
+  .slip .foot { padding: 12px 20px 16px; border-top: 2px dashed var(--line); font-size: 14px; color: var(--muted); }
+  .stamp {
+    display: inline-block; font-family: var(--display); font-weight: 800; font-size: 15px;
+    padding: 2px 10px; border-radius: 4px; border: 2px solid currentColor;
+  }
+  .stamp.urgent { color: var(--urgent); }
+  .stamp.medium { color: var(--tape-ink); background: var(--tape); border-color: var(--tape); }
+  .stamp.routine { color: var(--ok); }
+  .slip.empty .body .complaint { border-bottom: 0; padding-bottom: 0; margin-bottom: 8px; }
+  .slip.empty dl, .slip.empty .foot { display: none; }
+  @keyframes pressIn { from { transform: scale(1.35); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .stamp.pressed { animation: pressIn .22s ease-out; }
+  @media (prefers-reduced-motion: reduce) {
+    .stamp.pressed { animation: none; }
+    html { scroll-behavior: auto; }
+  }
+
+  /* Sections */
+  section { padding: 64px 0; border-top: 1px solid var(--line); }
+  section h2 {
+    font-family: var(--display); font-weight: 700; letter-spacing: -0.015em;
+    font-size: clamp(28px, 4vw, 40px); line-height: 1.12; margin: 0 0 16px; max-width: 22ch;
+  }
+  section p.intro { color: var(--muted); max-width: 62ch; margin: 0 0 32px; }
+
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1.5px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
+  .compare > div { padding: 24px 26px; }
+  .compare > div + div { border-left: 1.5px solid var(--line); }
+  .compare h3 { font-family: var(--display); font-size: 20px; margin: 0 0 12px; }
+  .compare ul { margin: 0; padding-left: 20px; }
+  .compare li { margin-bottom: 10px; }
+  .compare .after h3 { color: var(--ok); }
+  .compare .before h3 { color: var(--urgent); }
+
+  ol.steps { list-style: none; margin: 0; padding: 0; counter-reset: s; display: grid; gap: 0; }
+  ol.steps li { counter-increment: s; display: grid; grid-template-columns: 56px 1fr; gap: 8px; padding: 20px 0; border-bottom: 1px solid var(--line); }
+  ol.steps li:first-child { padding-top: 0; }
+  ol.steps li::before {
+    content: counter(s); font-family: var(--display); font-weight: 800; font-size: 34px; line-height: 1; color: var(--tape);
+    -webkit-text-stroke: 1px var(--ink);
+  }
+  ol.steps h3 { font-family: var(--display); font-size: 20px; margin: 0 0 4px; }
+  ol.steps p { margin: 0; color: var(--muted); max-width: 60ch; }
+
+  .roles { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .role { border-top: 6px solid var(--ink); padding-top: 16px; }
+  .role.staff { border-top-color: var(--tape); }
+  .role h3 { font-family: var(--display); font-size: 22px; margin: 0 0 6px; }
+  .role p { margin: 0 0 12px; color: var(--muted); }
+  .role ul { margin: 0; padding-left: 20px; }
+  .role li { margin-bottom: 8px; }
+
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+  footer.site { border-top: 1px solid var(--line); padding: 28px 0 44px; color: var(--muted); font-size: 15px; }
+
+  @media (max-width: 800px) {
+    .demo, .roles, .compare { grid-template-columns: 1fr; }
+    .compare > div + div { border-left: 0; border-top: 1.5px solid var(--line); }
+    nav.site a:not(.btn) { display: none; }
+    .slip dl { grid-template-columns: 96px 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site">
+    <a class="brand" href="#top" id="top"><span class="mark" aria-hidden="true">H</span>HostelFix AI</a>
+    <nav class="site" aria-label="Main">
+      <a href="#problem">Problem</a>
+      <a href="#how">How it works</a>
+      <a href="#who">Who uses it</a>
+      <a class="btn" href="https://hostel-ai-fix.lovable.app/" target="_blank" rel="noopener">Open the prototype</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="hero">
+      <h1>Report it once. AI routes it to the right hands.</h1>
+      <p class="lead">Tell HostelFix AI what is broken in plain words. It picks the category, sets the urgency, and sends the complaint to the person who can fix it.</p>
+
+      <div class="demo">
+        <div class="compose">
+          <label for="text">Try a complaint</label>
+          <textarea id="text" placeholder="For example: The fan in room 214 is not working"></textarea>
+          <div class="chips" role="group" aria-label="Example complaints">
+            <button class="chip" type="button">Fan in room 214 is making a loud noise and not working</button>
+            <button class="chip" type="button">Bathroom tap is leaking in block B, room 106</button>
+            <button class="chip" type="button">Sparks coming from the switchboard near my bed, room 312</button>
+            <button class="chip" type="button">Wi-Fi is down on the third floor</button>
+          </div>
+          <button class="btn" id="route" type="button">Route this complaint</button>
+          <p class="hint">This demo uses simple keyword rules to show the idea. The full prototype handles real accounts and tracking.</p>
+        </div>
+
+        <div class="slip empty" id="slip" aria-live="polite">
+          <div class="strip" aria-hidden="true"></div>
+          <div class="body">
+            <div class="top">
+              <span class="id" id="ticketId">Complaint slip</span>
+              <span class="status" id="ticketStatus">Waiting for a complaint</span>
+            </div>
+            <p class="complaint" id="ticketText">Write a complaint on the left and press Route this complaint. The slip fills in here.</p>
+            <dl>
+              <dt>Category</dt><dd id="fCat"></dd>
+              <dt>Assigned to</dt><dd id="fTeam"></dd>
+              <dt>Priority</dt><dd id="fPri"></dd>
+              <dt>Location</dt><dd id="fLoc"></dd>
+              <dt>Fix target</dt><dd id="fEta"></dd>
+            </dl>
+          </div>
+          <div class="foot" id="fFoot"></div>
+        </div>
+      </div>
+    </div>
+
+    <section id="problem">
+      <h2>Complaints get lost between the student and the fixer.</h2>
+      <p class="intro">In most hostels a broken fan or a leaking tap is reported by word of mouth or in a register. Nobody is sure who owns it, and the student cannot see whether anything is happening.</p>
+      <div class="compare">
+        <div class="before">
+          <h3>Today</h3>
+          <ul>
+            <li>Students tell a warden, a friend, or write in a register.</li>
+            <li>Someone has to read each complaint and decide who to call.</li>
+            <li>Urgent problems like sparking wires wait in the same queue as loose hinges.</li>
+            <li>Students have no way to check progress, so they ask again.</li>
+            <li>Admins cannot see which block or issue keeps repeating.</li>
+          </ul>
+        </div>
+        <div class="after">
+          <h3>With HostelFix AI</h3>
+          <ul>
+            <li>Students write the problem once, in their own words.</li>
+            <li>AI reads it and picks the category and the right staff team.</li>
+            <li>Safety issues are flagged as urgent and the warden is alerted.</li>
+            <li>Every complaint has a status the student can check anytime.</li>
+            <li>Admins see all complaints in one place and spot repeat issues.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="how">
+      <h2>From a sentence to a fixed problem in four steps.</h2>
+      <p class="intro">The student does one thing. The rest happens without anyone sorting through messages.</p>
+      <ol class="steps">
+        <li>
+          <div>
+            <h3>Student describes the issue</h3>
+            <p>Sign in with a college email or student ID and write what is wrong, the way you would tell a friend.</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>AI reads and sorts it</h3>
+            <p>It works out the category (electrical, plumbing, network and so on), how urgent it is, and the room or block if you mentioned one.</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>The right team gets it</h3>
+            <p>The complaint goes straight to the matching staff member, so no one has to forward it by hand.</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>Student tracks it to closure</h3>
+            <p>The status updates as staff work on it, and the admin can review what was fixed and how long it took.</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <section id="who">
+      <h2>One system, two views.</h2>
+      <p class="intro">The sign-in page has separate entries for students and for admin and staff.</p>
+      <div class="roles">
+        <div class="role">
+          <h3>Student</h3>
+          <p>Reports problems and follows them.</p>
+          <ul>
+            <li>Create an account with a college ID</li>
+            <li>Submit a complaint in plain language</li>
+            <li>See the status of every complaint you filed</li>
+          </ul>
+        </div>
+        <div class="role staff">
+          <h3>Admin and staff</h3>
+          <p>Handles the work and watches the whole hostel.</p>
+          <ul>
+            <li>Receive only the complaints meant for their team</li>
+            <li>Update status as the work progresses</li>
+            <li>Review complaints by category, block, and urgency</li>
+          </ul>
+        </div>
+      </div>
+      <div class="cta" style="margin-top:36px">
+        <a class="btn" href="https://hostel-ai-fix.lovable.app/" target="_blank" rel="noopener">Open the prototype</a>
+        <a class="btn ghost" href="#top">Back to the demo</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site">
+    HostelFix AI is a prototype built to make hostel maintenance simpler for students and staff.
+  </footer>
+</div>
+
+<script>
+(function () {
+  var rules = [
+    { name: 'Electrical',   team: 'Electrician',              words: ['fan','light','tube','bulb','switch','socket','plug','wire','wiring','power','current','mcb','charging','spark','shock','short circuit'] },
+    { name: 'Plumbing',     team: 'Plumber',                  words: ['tap','leak','water','flush','pipe','drain','bathroom','toilet','shower','geyser','seepage','clog','tank','flood'] },
+    { name: 'Wi-Fi and network', team: 'Network team',        words: ['wifi','wi-fi','internet','router','network','lan','signal'] },
+    { name: 'Carpentry',    team: 'Carpenter',                words: ['bed','cot','cupboard','wardrobe','door','lock','window','table','chair','hinge','shelf','latch','mattress'] },
+    { name: 'Housekeeping', team: 'Housekeeping supervisor',  words: ['clean','dirty','garbage','dustbin','sweep','mop','trash','smell','stink'] },
+    { name: 'Pest control', team: 'Pest control vendor',      words: ['cockroach','rat','mosquito','bedbug','ant','insect','termite'] }
+  ];
+  var urgentWords = ['spark','shock','smoke','fire','burning','burnt','short circuit','flood','gas','electrocut','snake'];
+  var mediumWords = ['not working','broken','stopped','no water','leak','not coming','damaged','loud noise','down'];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var slip = $('slip');
+
+  function has(text, w) { return new RegExp('\\b' + w.replace(/[-]/g, '\\-'), 'i').test(text); }
+
+  function analyse(text) {
+    var best = null, bestScore = 0;
+    rules.forEach(function (r) {
+      var score = r.words.filter(function (w) { return has(text, w); }).length;
+      if (score > bestScore) { best = r; bestScore = score; }
+    });
+    var cat = best || { name: 'General', team: 'Warden\u2019s office' };
+
+    var priority = 'routine';
+    if (mediumWords.some(function (w) { return has(text, w); })) priority = 'medium';
+    if (urgentWords.some(function (w) { return has(text, w); })) priority = 'urgent';
+
+    var room = text.match(/room\s*(?:no\.?\s*)?[:#\-]?\s*([a-z]?-?\d{1,4}[a-z]?)/i);
+    var block = text.match(/block\s*([a-z])\b/i);
+    var floor = text.match(/(ground|first|second|third|fourth|\d(?:st|nd|rd|th))\s*floor/i);
+    var loc = [];
+    if (block) loc.push('Block ' + block[1].toUpperCase());
+    if (room) loc.push('Room ' + room[1].toUpperCase());
+    if (floor) loc.push(floor[1].charAt(0).toUpperCase() + floor[1].slice(1) + ' floor');
+
+    return { cat: cat, priority: priority, loc: loc.join(', ') };
+  }
+
+  function idFor(text) {
+    var h = 0;
+    for (var i = 0; i < text.length; i++) { h = (h * 31 + text.charCodeAt(i)) % 9000; }
+    return 'HF-' + (1000 + h);
+  }
+
+  var eta = { urgent: 'Within 2 hours', medium: 'Within 24 hours', routine: 'Within 3 days' };
+  var label = { urgent: 'Urgent', medium: 'Needs attention', routine: 'Routine' };
+
+  function route() {
+    var text = $('text').value.trim();
+    if (!text) {
+      $('text').focus();
+      $('ticketText').textContent = 'The complaint is empty. Describe the problem, then press Route this complaint.';
+      return;
+    }
+    var a = analyse(text);
+    slip.classList.remove('empty');
+    $('ticketId').textContent = idFor(text);
+    $('ticketStatus').textContent = 'Assigned';
+    $('ticketText').textContent = '\u201C' + text + '\u201D';
+    $('fCat').textContent = a.cat.name;
+    $('fTeam').textContent = a.cat.team;
+
+    var stamp = document.createElement('span');
+    stamp.className = 'stamp pressed ' + a.priority;
+    stamp.textContent = label[a.priority];
+    var fp = $('fPri'); fp.textContent = ''; fp.appendChild(stamp);
+
+    $('fLoc').textContent = a.loc || 'Not mentioned';
+    $('fEta').textContent = eta[a.priority];
+
+    var notes = [];
+    if (a.priority === 'urgent') notes.push('Safety risk detected. The warden is alerted along with the assigned team.');
+    if (!a.loc) notes.push('No room was found, so the student would be asked to add one.');
+    if (a.cat.name === 'General') notes.push('No category matched, so this goes to the warden\u2019s office to sort.');
+    $('fFoot').textContent = notes.length ? notes.join(' ') : 'The student can now follow this complaint until it is closed.';
+  }
+
+  $('route').addEventListener('click', route);
+  $('text').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); route(); }
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.chip'), function (c) {
+    c.addEventListener('click', function () { $('text').value = c.textContent; route(); });
+  });
+})();
+</script>
+</body>
+</html>
